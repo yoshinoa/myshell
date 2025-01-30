@@ -8,6 +8,7 @@ alias docker-compose='docker compose'
 alias eep='systemctl suspend'
 alias zshrc='code ~/.zshrc'
 alias windows='sudo grub-reboot 2 && sudo reboot'
+alias magnet='transmission-remote TRANSMISSION_REMOTE_URL --auth :FERALHOSTINGPW -a'
 
 # timer
 timer() {
