@@ -1,14 +1,36 @@
 #!/bin/bash
+BASE_URL=YOUR_TRANSMISSION_PUBLIC_DIR
+STATE_FILE="$HOME/.local/share/transmission_player_state.json"
 
-BASE_URL="seedbox_url"
+mkdir -p "$(dirname "$STATE_FILE")"
 
 urldecode() {
     printf '%b' "${1//%/\\x}"
 }
 
+save_state() {
+    local dir="$1"
+    local file="$2"
+    local position="$3"
+    
+    # Create JSON structure
+    echo "{\"directory\":\"$dir\",\"file\":\"$file\",\"position\":$position}" > "$STATE_FILE"
+}
+
+load_state() {
+    if [[ -f "$STATE_FILE" ]]; then
+        cat "$STATE_FILE"
+    else
+        echo "{\"directory\":\"\",\"file\":\"\",\"position\":0}"
+    fi
+}
+
 play_directory() {
     local dir_url="$1"
     local selected_file="$2"
+    
+
+    local socket_path="/tmp/mpvsocket_$$"
     
     local playlist=$(curl -s "$dir_url/" | 
         grep -oP '(?<=href=")[^"]+' | 
@@ -16,21 +38,46 @@ play_directory() {
     
     local start_index=$(($(echo "$playlist" | grep -n "$selected_file" | cut -d: -f1) - 1))
     
+    (
+        while [ -S "$socket_path" ]; do
+            position=$(echo '{ "command": ["get_property", "time-pos"] }' | socat - "$socket_path" 2>/dev/null | jq -r '.data')
+            if [ ! -z "$position" ] && [ "$position" != "null" ]; then
+                save_state "$dir_url" "$selected_file" "$position"
+            fi
+            sleep 1
+        done
+    ) &
+    position_tracker_pid=$!
+    
     echo "$playlist" | 
         sed "s|^|$dir_url/|" |
-        mpv --playlist=- --playlist-start="$start_index"
+        mpv --playlist=- --playlist-start="$start_index" \
+            --save-position-on-quit \
+            --script-opts=osc-visibility=always \
+            --input-ipc-server="$socket_path"
+    
+    kill $position_tracker_pid 2>/dev/null
+    rm -f "$socket_path"
 }
 
 navigate_and_play() {
     local current_url="$1"
+    local last_state=$(load_state)
+    local last_dir=$(echo "$last_state" | jq -r '.directory')
+    local last_file=$(echo "$last_state" | jq -r '.file')
     
     while true; do
         SELECTION=$(curl -s "$current_url/" | 
             grep -oP '(?<=href=")[^"]+' | 
             while read -r line; do
-                echo -e "$(urldecode "$line")\t$line"
+                decoded=$(urldecode "$line")
+                if [[ "$current_url/$line" == "$last_dir/" ]] || [[ "$line" == "$last_file" ]]; then
+                    echo -e "\033[33m$decoded\033[0m\t$line"
+                else
+                    echo -e "$decoded\t$line"
+                fi
             done |
-            fzf --with-nth=1 --delimiter='\t' --preview 'echo {1}' |
+            fzf --ansi --with-nth=1 --delimiter='\t' --preview 'echo {1}' |
             cut -f2)
         
         [[ -z "$SELECTION" ]] && exit
@@ -43,5 +90,8 @@ navigate_and_play() {
         fi
     done
 }
+
+command -v jq >/dev/null 2>&1 || { echo "Please install jq: sudo apt install jq"; exit 1; }
+command -v socat >/dev/null 2>&1 || { echo "Please install socat: sudo apt install socat"; exit 1; }
 
 navigate_and_play "$BASE_URL"
