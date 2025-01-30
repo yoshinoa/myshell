@@ -9,6 +9,11 @@ alias eep='systemctl suspend'
 alias zshrc='code ~/.zshrc'
 alias windows='sudo grub-reboot 2 && sudo reboot'
 
+# timer
+timer() {
+    termdown "$@" && (for i in {1..5}; do play -n synth 0.3 sine 440 gain 5; sleep 0.3; done)
+}
+
 # Plugins
 plugins=(
   git
