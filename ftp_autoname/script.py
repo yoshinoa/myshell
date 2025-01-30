@@ -10,24 +10,20 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# Set up logging
 def setup_logging():
     """Configure logging to both file and console"""
-    # Create logs directory if it doesn't exist
     if not os.path.exists("logs"):
         os.makedirs("logs")
 
-    # Create a unique log file name with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_file = f"logs/media_organizer_{timestamp}.log"
 
-    # Set up logging configuration
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[
             logging.FileHandler(log_file),
-            logging.StreamHandler(),  # This will print to console too
+            logging.StreamHandler(),
         ],
     )
 
@@ -82,7 +78,6 @@ def get_standardized_name(original_name, is_directory, client):
             f"Requesting standardized name for {'directory' if is_directory else 'file'}: {original_name}"
         )
 
-        # Get the extension if it's a file
         extension = os.path.splitext(original_name)[1] if not is_directory else ""
 
         system_content = """You are a media file organizer. First determine if this is a movie or TV show episode.
@@ -120,10 +115,7 @@ First output either MOVIE: or TVSHOW: followed by the standardized name. Nothing
         result = response.choices[0].message.content.strip()
         logging.info(f"AI response: {result}")
 
-        # Split the type and name
         media_type, new_name = result.split(": ", 1)
-
-        # Add back the extension for files
         if not is_directory:
             new_name = f"{new_name}{extension}"
 
@@ -143,11 +135,10 @@ def process_directory_recursive(ftp, path, client):
 
     try:
         logging.info(f"Processing directory: {path}")
-        old_dir = ftp.pwd()  # Save current directory
+        old_dir = ftp.pwd()
         items = ftp.nlst()
         logging.info(f"Found {len(items)} items in directory")
 
-        # Handle deletions first
         for item in items:
             if should_delete_file(item):
                 try:
@@ -157,14 +148,12 @@ def process_directory_recursive(ftp, path, client):
                     logging.error(f"Failed to delete {item}: {e}")
                 continue
 
-        # Process files and directories
         for item in items:
             try:
-                # Try to CWD to check if it's a directory
                 try:
                     ftp.cwd(item)
                     is_dir = True
-                    ftp.cwd(old_dir)  # Go back
+                    ftp.cwd(old_dir)
                 except:
                     is_dir = False
 
@@ -176,11 +165,10 @@ def process_directory_recursive(ftp, path, client):
                         try:
                             ftp.rename(item, new_name)
                             logging.info(f"Renamed directory: {item} -> {new_name}")
-                            item = new_name  # Update item name for recursion
+                            item = new_name
                         except Exception as e:
                             logging.error(f"Error renaming directory {item}: {e}")
 
-                    # Process the subdirectory
                     ftp.cwd(item)
                     process_directory_recursive(ftp, f"{path}/{item}", client)
                     ftp.cwd(old_dir)
@@ -200,7 +188,6 @@ def process_directory_recursive(ftp, path, client):
                 logging.error(f"Error processing item {item}: {e}")
                 continue
 
-        # Mark directory as processed
         save_processed_dir(path)
         logging.info(f"Marked directory as processed: {path}")
 
@@ -209,28 +196,22 @@ def process_directory_recursive(ftp, path, client):
 
 
 def main():
-    # Set up logging first
     log_file = setup_logging()
     logging.info("Media organization script started")
 
-    # Configuration
     FTP_HOST = os.getenv("FTP_HOST")
     FTP_USER = os.getenv("FTP_USER")
     FTP_PASS = os.getenv("FTP_PASS")
     START_PATH = os.getenv("FTP_START_PATH")
 
-    # Initialize OpenAI client
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     logging.info("OpenAI client initialized")
-
-    # Connect to FTP
     ftp = connect_ftp(FTP_HOST, FTP_USER, FTP_PASS)
     if not ftp:
         logging.error("Failed to connect to FTP server. Exiting.")
         return
 
     try:
-        # Start recursive processing from root directory
         ftp.cwd(START_PATH)
         process_directory_recursive(ftp, "", client)
         logging.info("Processing completed successfully")
