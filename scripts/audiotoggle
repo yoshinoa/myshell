@@ -7,7 +7,6 @@ else
     NID=""
 fi
 
-# Get current default sink
 current=$(pactl get-default-sink)
 mapfile -t sinks < <(pactl list short sinks | grep -v "hdmi" | cut -f2)
 mapfile -t descriptions < <(pactl list sinks | grep "Description:" | grep -v "HDMI" | cut -d: -f2- | sed 's/^\s*//')
@@ -22,7 +21,6 @@ done
 next_index=$(( (current_index + 1) % ${#sinks[@]} ))
 pactl set-default-sink "${sinks[$next_index]}"
 
-# Send a new notification and store its ID
 NEW_NID=$(notify-send -p -r "$NID" "Audio Output Switched" "Changed to: ${descriptions[$next_index]}")
 if [[ -n "$NEW_NID" && "$NEW_NID" -ne 0 ]]; then
     echo "$NEW_NID" > "$ID_FILE"
