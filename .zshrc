@@ -8,7 +8,7 @@ alias docker-compose='docker compose'
 alias eep='systemctl suspend'
 alias zshrc='code ~/.zshrc'
 alias windows='sudo grub-reboot 2 && sudo reboot'
-alias magnet='transmission-remote TRANSMISSION_REMOTE_URL --auth :FERALHOSTINGPW -a'
+alias magnet='function _magnet() { transmission-remote https://XXXXXX.feralhosting.com:443/USERNAME/transmission/rpc --auth :FERALHOSTINGPW -a "$(xclip -o -selection clipboard)" && track-magnet "$(xclip -o -selection clipboard)" & }; _magnet'
 
 # timer
 timer() {
