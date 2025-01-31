@@ -10,9 +10,9 @@ alias zshrc='code ~/.zshrc'
 alias windows='sudo grub-reboot 2 && sudo reboot'
 alias magnet='function _magnet() { transmission-remote https://XXXXXX.feralhosting.com:443/USERNAME/transmission/rpc --auth :FERALHOSTINGPW -a "$(xclip -o -selection clipboard)" && track-magnet "$(xclip -o -selection clipboard)" & }; _magnet'
 
-# timer
+# extra stuff
 timer() {
-    termdown "$@" && (for i in {1..5}; do play -n synth 0.3 sine 440 gain 5; sleep 0.3; done)
+    termdown "$@" && (for i in {1..5}; do play -n synth 0.3 sine 440 gain 5 2>/dev/null; sleep 0.3; done)
 }
 
 # Plugins
