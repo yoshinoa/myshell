@@ -187,8 +187,8 @@ def process_directory_recursive(ftp, path, client):
             except Exception as e:
                 logging.error(f"Error processing item {item}: {e}")
                 continue
-
-        save_processed_dir(path)
+        if path != "":
+            save_processed_dir(path)
         logging.info(f"Marked directory as processed: {path}")
 
     except Exception as e:
