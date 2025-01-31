@@ -1,0 +1,27 @@
+#!/bin/bash
+
+TORRENT_ID=$(transmission-remote https://XXXXXXX.feralhosting.com:443/FERALHOSTINGUSERNAME/transmission/rpc --auth :FERALHOSTINGPASSWORD -l | grep -v "Sum:" | tail -n 1 | awk '{print $1}')
+
+if [ -z "$TORRENT_ID" ]; then
+    echo "Failed to get torrent ID" >&2
+    exit 1
+fi
+
+LOG_FILE="/tmp/transmission_track_$TORRENT_ID.log"
+
+echo "Tracking torrent ID: $TORRENT_ID" > "$LOG_FILE"
+
+while true; do
+    STATUS=$(transmission-remote https://XXXXXXX.feralhosting.com:443/FERALHOSTINGUSERNAME/transmission/rpc --auth :FERALHOSTINGPASSWORD -t "$TORRENT_ID" -i)
+    PERCENT=$(echo "$STATUS" | grep "Percent Done:" | awk '{print $3}')
+    NAME=$(echo "$STATUS" | grep "Name:" | cut -d: -f2- | xargs)
+    
+    echo "$(date '+%H:%M:%S') - $NAME: $PERCENT" >> "$LOG_FILE"
+    
+    if [[ "$PERCENT" == "100%" ]]; then
+        notify-send "Download Complete!" "$NAME has finished downloading"
+        break
+    fi
+    
+    sleep 10
+done
